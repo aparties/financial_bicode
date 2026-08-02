@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+@theme {
+  /* System Colors */
+  --color-background: #0b241c;
+  --color-foreground: #a8b5b0;
+  
+  /* Financial Dashboard Custom Colors */
+  --color-pch-forest: #0b241c;
+  --color-pch-card: #143028;
+  --color-pch-input: #081a14;
+  --color-pch-mint: #57cc99;
+  --color-pch-sage: #80ed99;
+  --color-pch-border: #1d4034;
+  
+  /* Layout utilities */
+  --radius-card: 40px;
+}
+
+body {
+  background-color: var(--color-pch-forest);
+  color: var(--color-foreground);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+/* Custom scrollbar for premium feel */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #0b241c;
+}
+::-webkit-scrollbar-thumb {
+  background: #1d4034;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #57cc99;
+}
+
+/* Hide number input spin buttons globally */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
