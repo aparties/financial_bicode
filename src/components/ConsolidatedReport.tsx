@@ -1,5 +1,5 @@
 import React from "react";
-import { Landmark, TrendingUp, ShieldAlert, BadgeDollarSign, Wallet2, Users, PenTool, Home, Boxes } from "lucide-react";
+import { Landmark, TrendingUp, ShieldAlert, BadgeDollarSign, Wallet2, Users, PenTool, Home, Boxes, Download } from "lucide-react";
 
 type ConsolidatedSummary = {
   totalBalance: number;
@@ -17,9 +17,10 @@ type ConsolidatedSummary = {
 type ConsolidatedReportProps = {
   summary: ConsolidatedSummary;
   exchangeRate: number;
+  onExportCsv?: () => void;
 };
 
-export function ConsolidatedReport({ summary, exchangeRate }: ConsolidatedReportProps) {
+export function ConsolidatedReport({ summary, exchangeRate, onExportCsv }: ConsolidatedReportProps) {
   const isNetWorthPositive = summary.consolidated >= 0;
 
   return (
@@ -27,7 +28,20 @@ export function ConsolidatedReport({ summary, exchangeRate }: ConsolidatedReport
       {/* Decorative gradient background */}
       <div className="absolute -left-12 -bottom-12 w-48 h-48 bg-[#57cc99]/5 rounded-full blur-[85px] pointer-events-none" />
 
-      <h3 className="text-white text-xl font-bold tracking-tight mb-6">Reporte Patrimonial Consolidado</h3>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <h3 className="text-white text-xl font-bold tracking-tight">Reporte Patrimonial Consolidado</h3>
+        
+        {onExportCsv && (
+          <button
+            onClick={onExportCsv}
+            className="inline-flex items-center gap-2 bg-[#0b241c] border border-[#57cc99]/30 text-[#57cc99] text-xs font-bold rounded-full px-4 py-2 hover:bg-[#57cc99] hover:text-[#0b241c] transition-all duration-300 cursor-pointer shadow-md self-start sm:self-auto"
+            title="Descargar reporte completo en archivo .csv"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Descargar Reporte CSV
+          </button>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
         

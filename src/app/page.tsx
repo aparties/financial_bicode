@@ -9,8 +9,11 @@ import {
   AlertCircle,
   Database,
   ArrowRightLeft,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Download
 } from "lucide-react";
+
+import { exportFullReportToCSV } from "@/lib/exportCsv";
 
 import { MetricCard } from "@/components/MetricCard";
 import { AccountList } from "@/components/AccountList";
@@ -250,6 +253,16 @@ export default function DashboardPage() {
               </select>
             </div>
 
+            {/* Export CSV button */}
+            <button
+              onClick={() => exportFullReportToCSV(data, selectedMonth, exchangeRate)}
+              className="flex items-center gap-2 bg-[#143028] border border-[#57cc99]/30 text-[#57cc99] font-bold text-xs rounded-full px-4 py-2.5 hover:bg-[#57cc99] hover:text-[#0b241c] hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 cursor-pointer shadow-lg whitespace-nowrap"
+              title="Descargar reporte completo en archivo CSV"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Exportar Reporte CSV
+            </button>
+
             {/* CTA button */}
             <button
               onClick={() => setIsTxModalOpen(true)}
@@ -305,7 +318,11 @@ export default function DashboardPage() {
           {/* Main List column */}
           <div className="lg:col-span-2 space-y-8">
             
-            <ConsolidatedReport summary={summary} exchangeRate={exchangeRate} />
+            <ConsolidatedReport 
+              summary={summary} 
+              exchangeRate={exchangeRate} 
+              onExportCsv={() => exportFullReportToCSV(data, selectedMonth, exchangeRate)}
+            />
 
             {/* Financial Behavior and Break-Even Chart */}
             <BreakEvenChart history={monthlyHistory} />
