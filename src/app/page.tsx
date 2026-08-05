@@ -2,7 +2,8 @@
 
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Toaster } from "react-hot-toast";
+import { useRouter } from "next/navigation";
+import toast, { Toaster } from "react-hot-toast";
 import { 
   TrendingUp, 
   DollarSign, 
@@ -10,7 +11,8 @@ import {
   Database,
   ArrowRightLeft,
   FileSpreadsheet,
-  Download
+  Download,
+  LogOut
 } from "lucide-react";
 
 import { exportFullReportToCSV } from "@/lib/exportCsv";
@@ -77,6 +79,27 @@ type DashboardData = {
 };
 
 export default function DashboardPage() {
+  const router = useRouter();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    const logoutToast = toast.loading("Cerrando sesión...");
+    try {
+      const res = await fetch("/api/auth/logout", { method: "POST" });
+      if (res.ok) {
+        toast.success("Sesión cerrada", { id: logoutToast });
+        router.push("/login");
+        router.refresh();
+      } else {
+        throw new Error("No se pudo cerrar la sesión.");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Error al cerrar sesión", { id: logoutToast });
+      setIsLoggingOut(false);
+    }
+  };
+
   const [isTxModalOpen, setIsTxModalOpen] = useState(false);
   const [isAccModalOpen, setIsAccModalOpen] = useState(false);
   const [isLiaModalOpen, setIsLiaModalOpen] = useState(false);
@@ -270,6 +293,17 @@ export default function DashboardPage() {
             >
               <ArrowRightLeft className="w-3.5 h-3.5" />
               Registrar Transacción
+            </button>
+
+            {/* Logout button */}
+            <button
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              className="flex items-center gap-2 bg-transparent border border-rose-500/30 text-rose-400 font-bold text-xs rounded-full px-4 py-2.5 hover:bg-rose-500 hover:text-white hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 cursor-pointer shadow-lg whitespace-nowrap disabled:opacity-50"
+              title="Cerrar sesión del panel"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              Salir
             </button>
           </div>
         </div>
