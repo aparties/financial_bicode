@@ -14,6 +14,9 @@ type Liability = {
   installmentAmount?: string;
   pendingInstallments?: number;
   currency?: string;
+  currentPortion?: string;
+  nonCurrentPortion?: string;
+  classification?: string;
 };
 
 type LiabilityListProps = {
@@ -72,6 +75,28 @@ export function LiabilityList({ liabilities, onAddClick, onMutate }: LiabilityLi
               {interestNum > 0 && <span className="flex items-center gap-1 bg-[#143028] px-2 py-0.5 rounded border border-[#1d4034]/30"><Percent className="w-3 h-3 text-[#57cc99]" />Tasa: <strong className="text-white">{interestNum}%</strong></span>}
               {instAmt > 0 && <span className="flex items-center gap-1 bg-[#143028] px-2 py-0.5 rounded border border-[#1d4034]/30">Cuota: <strong className="text-white">{symbol}{instAmt.toLocaleString("es-ES", { minimumFractionDigits: 0 })}</strong>{pend > 0 && <span className="text-[#a8b5b0]/65">({pend} rest.)</span>}</span>}
               {due && <span className="flex items-center gap-1 bg-[#143028] px-2 py-0.5 rounded border border-[#1d4034]/30"><Calendar className="w-3 h-3 text-[#57cc99]" />Vence: <strong className="text-white">{due.toLocaleDateString("es-ES", { day: "2-digit", month: "short" })}</strong></span>}
+            </div>
+
+            {/* Sincerated Term Breakdown Badge */}
+            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+              {l.classification === "mixed" ? (
+                <>
+                  <span className="text-[9px] text-[#80ed99] bg-[#80ed99]/10 px-2 py-0.5 rounded-full font-bold border border-[#80ed99]/20">
+                    Corriente 12m: {symbol}{parseFloat(l.currentPortion || "0").toLocaleString("es-ES", { maximumFractionDigits: 0 })}
+                  </span>
+                  <span className="text-[9px] text-indigo-300 bg-indigo-500/10 px-2 py-0.5 rounded-full font-bold border border-indigo-500/20">
+                    No Corriente: {symbol}{parseFloat(l.nonCurrentPortion || "0").toLocaleString("es-ES", { maximumFractionDigits: 0 })}
+                  </span>
+                </>
+              ) : l.classification === "non_current" ? (
+                <span className="text-[9px] text-indigo-300 bg-indigo-500/10 px-2 py-0.5 rounded-full font-bold border border-indigo-500/20">
+                  Pasivo No Corriente (&gt; 12 meses)
+                </span>
+              ) : (
+                <span className="text-[9px] text-amber-300 bg-amber-400/10 px-2 py-0.5 rounded-full font-bold border border-amber-400/20">
+                  Pasivo Corriente (&le; 12 meses)
+                </span>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2 ml-3 shrink-0">

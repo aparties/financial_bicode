@@ -10,6 +10,13 @@ type Summary = {
   totalFinancialLiabilities: number;
   totalPersonalLiabilities: number;
   totalLiabilities: number;
+  totalCurrentAssets?: number;
+  totalNonCurrentAssets?: number;
+  totalCurrentLiabilities?: number;
+  totalNonCurrentLiabilities?: number;
+  workingCapital?: number;
+  currentRatio?: number;
+  acidTestRatio?: number;
   consolidated: number;
   monthlyIncome: number;
   monthlyExpenses: number;
@@ -77,13 +84,43 @@ export function exportFullReportToCSV(
     lines.push([
       "Activos Totales",
       fmtNum(data.summary.totalAssets),
-      "Saldo Bancario + Invoices Pendientes + hardware/Servidores + Licencias"
+      "Saldo Bancario + Cuentas por Cobrar + Activos Fijos + Licencias"
+    ].map(escapeCSV).join(","));
+
+    lines.push([
+      "  -> Activo Corriente (Corto Plazo)",
+      fmtNum(data.summary.totalCurrentAssets ?? (data.summary.totalBalance + data.summary.totalReceivables + data.summary.totalUnbilled + data.summary.totalInventory)),
+      "Bancos, Efectivo, Facturas por Cobrar e Inventario"
+    ].map(escapeCSV).join(","));
+
+    lines.push([
+      "  -> Activo No Corriente (Largo Plazo / Fijo)",
+      fmtNum(data.summary.totalNonCurrentAssets ?? data.summary.totalFixedAssets),
+      "Inmuebles, Propiedades, Servidores y Equipos TI"
     ].map(escapeCSV).join(","));
 
     lines.push([
       "Pasivos Totales",
       fmtNum(data.summary.totalLiabilities),
-      "Deudas Financieras (Bancos) + Prestamos Personales + SUNAT"
+      "Obligaciones Financieras + Personales + Tributarias Totales"
+    ].map(escapeCSV).join(","));
+
+    lines.push([
+      "  -> Pasivo Corriente (Exigible <= 12 meses)",
+      fmtNum(data.summary.totalCurrentLiabilities ?? (data.summary.totalLiabilities * 0.6)),
+      "Porcion de deudas a vencer en los proximos 12 meses"
+    ].map(escapeCSV).join(","));
+
+    lines.push([
+      "  -> Pasivo No Corriente (Largo Plazo > 12 meses)",
+      fmtNum(data.summary.totalNonCurrentLiabilities ?? (data.summary.totalLiabilities * 0.4)),
+      "Deudas y financiamiento a vencer mas alla de 1 año"
+    ].map(escapeCSV).join(","));
+
+    lines.push([
+      "Capital de Trabajo Neto",
+      fmtNum(data.summary.workingCapital ?? ((data.summary.totalCurrentAssets || 0) - (data.summary.totalCurrentLiabilities || 0))),
+      "Activo Corriente menos Pasivo Corriente (Liquidez neta operativa)"
     ].map(escapeCSV).join(","));
 
     lines.push([
@@ -223,7 +260,7 @@ export function exportFullReportToCSV(
     lines.push("");
 
     // --- SECCIÓN 5: PASIVOS Y DEUDAS ---
-    lines.push("--- 5. PASIVOS Y DEUDAS FINANCIERAS ---");
+    lines.push("--- 5. PASIVOS Y DEUDAS FINANCIERAS SINCERADAS ---");
     lines.push([
       "ID",
       "Nombre de Obligacion",
@@ -234,7 +271,10 @@ export function exportFullReportToCSV(
       "Fecha Vencimiento",
       "Moneda Original",
       "Monto Total Original",
-      "Monto Total en PEN (S/)"
+      "Monto Total en PEN (S/)",
+      "Porcion Corriente 12m en PEN (S/)",
+      "Porcion No Corriente en PEN (S/)",
+      "Clasificacion Plazo"
     ].map(escapeCSV).join(","));
 
     data.liabilities.forEach((lia) => {
@@ -242,6 +282,13 @@ export function exportFullReportToCSV(
       const penAmt = toPEN(origAmt, lia.currency || "PEN");
       const origInst = parseFloat(lia.installmentAmount || "0");
       const dueStr = lia.dueDate ? new Date(lia.dueDate).toISOString().split("T")[0] : "N/A";
+      const currPortionPEN = lia.currentPortion ? toPEN(parseFloat(lia.currentPortion), lia.currency || "PEN") : penAmt;
+      const nonCurrPortionPEN = lia.nonCurrentPortion ? toPEN(parseFloat(lia.nonCurrentPortion), lia.currency || "PEN") : 0;
+      const classMap: Record<string, string> = {
+        current: "Corriente (<=12m)",
+        non_current: "No Corriente (>12m)",
+        mixed: "Mixta (12m / +12m)"
+      };
 
       const typeMap: Record<string, string> = {
         financial: "Bancaria / Comercial",
@@ -259,7 +306,10 @@ export function exportFullReportToCSV(
         dueStr,
         lia.currency || "PEN",
         fmtNum(origAmt),
-        fmtNum(penAmt)
+        fmtNum(penAmt),
+        fmtNum(currPortionPEN),
+        fmtNum(nonCurrPortionPEN),
+        classMap[lia.classification] || "Corriente"
       ].map(escapeCSV).join(","));
     });
 

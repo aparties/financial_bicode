@@ -61,10 +61,13 @@ export function AssetList({ assets, onAddClick, onMutate }: AssetListProps) {
   const fixedAssets = assets.filter(a => a.type !== "software_licenses");
   const inventoryAssets = assets.filter(a => a.type === "software_licenses");
 
-  const renderGroup = (title: string, list: Asset[], emptyMsg: string) => (
+  const renderGroup = (title: string, list: Asset[], emptyMsg: string, isCurrent: boolean) => (
     <div className="space-y-3">
       <h4 className="text-[#57cc99] font-bold text-xs uppercase tracking-wider border-b border-[#1d4034]/30 pb-1.5 flex justify-between items-center">
-        <span>{title}</span>
+        <span className="flex items-center gap-1.5">
+          <span className={`w-2 h-2 rounded-full ${isCurrent ? "bg-[#80ed99]" : "bg-purple-400"}`} />
+          {title}
+        </span>
         <span className="text-[10px] text-[#a8b5b0] bg-[#0b241c] px-2 py-0.5 rounded-full font-semibold">{list.length}</span>
       </h4>
       <div className="space-y-3">
@@ -75,10 +78,15 @@ export function AssetList({ assets, onAddClick, onMutate }: AssetListProps) {
           return (
             <div key={ast.id} className="flex justify-between items-center p-4 rounded-2xl bg-[#081a14] border border-[#1d4034]/50 hover:border-[#57cc99]/30 transition-all duration-300 group/item">
               <div className="flex items-center gap-4 min-w-0">
-                <div className="bg-[#57cc99]/10 p-3 rounded-xl text-[#57cc99] shrink-0"><Icon className="w-4 h-4" /></div>
+                <div className={`p-3 rounded-xl shrink-0 ${isCurrent ? "bg-[#57cc99]/10 text-[#57cc99]" : "bg-purple-500/10 text-purple-300"}`}><Icon className="w-4 h-4" /></div>
                 <div className="min-w-0">
                   <h5 className="text-white font-semibold text-sm group-hover/item:text-[#57cc99] transition-colors duration-300 truncate">{ast.name}</h5>
-                  <span className="text-xs text-[#a8b5b0]">{getAssetTypeLabel(ast.type)}</span>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs text-[#a8b5b0]">{getAssetTypeLabel(ast.type)}</span>
+                    <span className={`text-[9px] font-bold px-2 py-0.2 rounded-full ${isCurrent ? "text-[#80ed99] bg-[#80ed99]/10 border border-[#80ed99]/20" : "text-purple-300 bg-purple-500/10 border border-purple-500/20"}`}>
+                      {isCurrent ? "Act. Corriente" : "Act. No Corriente"}
+                    </span>
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0 ml-3">
@@ -105,8 +113,8 @@ export function AssetList({ assets, onAddClick, onMutate }: AssetListProps) {
             : <span className="text-[#57cc99] font-bold text-[10px] tracking-widest uppercase bg-[#57cc99]/10 px-3 py-1 rounded-full">Propiedades</span>}
         </div>
         <div className="space-y-6">
-          {renderGroup("Infraestructura y Oficinas", fixedAssets, "No hay infraestructura ni oficinas registradas.")}
-          {renderGroup("Licencias y Software", inventoryAssets, "No hay licencias ni software en stock.")}
+          {renderGroup("Activos No Corrientes (Inmuebles y Equipos Fijos)", fixedAssets, "No hay activos no corrientes registrados.", false)}
+          {renderGroup("Activos Corrientes (Licencias / Existencias)", inventoryAssets, "No hay licencias ni software en stock.", true)}
         </div>
       </div>
 

@@ -58,6 +58,34 @@ export function InvoiceList({ invoices, onAddClick, onMutate }: InvoiceListProps
     return "Contado";
   };
 
+  const handleQuickStatusChange = async (inv: Invoice, newStatus: string) => {
+    const isPaid = newStatus === "paid";
+    const toastId = toast.loading(isPaid ? "Marcando como cobrada..." : "Actualizando estado...");
+    try {
+      const res = await fetch(`/api/invoices?id=${inv.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientName: inv.clientName,
+          amount: inv.amount,
+          status: newStatus,
+          paymentTerms: inv.paymentTerms,
+          dueDate: inv.dueDate,
+          currency: inv.currency,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(isPaid ? `Factura "${inv.clientName}" cobrada exitosamente` : "Estado actualizado", { id: toastId });
+        onMutate?.();
+      } else {
+        toast.error(data.error || "Error al actualizar", { id: toastId });
+      }
+    } catch {
+      toast.error("Error de red", { id: toastId });
+    }
+  };
+
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`¿Eliminar factura de "${name}"?`)) return;
     const toastId = toast.loading("Eliminando...");
@@ -98,7 +126,25 @@ export function InvoiceList({ invoices, onAddClick, onMutate }: InvoiceListProps
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0 ml-3">
-                <div className="flex items-center gap-1 opacity-0 group-hover/item:opacity-100 transition-opacity duration-200">
+                <div className="flex items-center gap-1 opacity-90 sm:opacity-0 sm:group-hover/item:opacity-100 transition-opacity duration-200">
+                  {inv.status !== "paid" ? (
+                    <button
+                      onClick={() => handleQuickStatusChange(inv, "paid")}
+                      title="Marcar como Cobrada"
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[#80ed99] bg-[#80ed99]/10 hover:bg-[#80ed99]/20 border border-[#80ed99]/30 transition-all cursor-pointer text-[10px] font-bold"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Cobrada</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleQuickStatusChange(inv, "pending")}
+                      title="Revertir a Por Cobrar"
+                      className="p-1.5 rounded-lg text-[#a8b5b0] hover:text-amber-400 hover:bg-amber-400/10 transition-all cursor-pointer"
+                    >
+                      <Clock className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                   <button onClick={() => setEditRecord(inv)} title="Editar" className="p-1.5 rounded-lg text-[#a8b5b0] hover:text-[#57cc99] hover:bg-[#57cc99]/10 transition-all cursor-pointer"><Pencil className="w-3.5 h-3.5" /></button>
                   <button onClick={() => handleDelete(inv.id, inv.clientName)} title="Eliminar" className="p-1.5 rounded-lg text-[#a8b5b0] hover:text-rose-400 hover:bg-rose-400/10 transition-all cursor-pointer"><Trash2 className="w-3.5 h-3.5" /></button>
                 </div>

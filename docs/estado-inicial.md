@@ -125,19 +125,21 @@ Las categorías de transacciones disponibles para clasificar egresos en el modal
 
 ---
 
-## 8. Métricas del Resumen Consolidado (Agosto 2026 — Estado Inicial)
+## 8. Métricas del Resumen Consolidado Sincerado
 
-| Métrica | Valor (S/) | Notas |
-|---------|-----------|-------|
-| **Activos Totales** | S/ 497,950–555,550 | Variable según tipo de cambio configurado |
-| **Pasivos Totales** | S/ 57,480–57,600 | Incluye deuda en USD convertida |
-| **Consolidado Neto (Patrimonio)** | S/ 440,000–498,000 | Activos − Pasivos |
-| **Flujo Caja Neto** | S/ 0 (demo) | Se activa al registrar transacciones del mes |
-| **Meta de Crecimiento** | +20% anual | Alerta si crecimiento proyectado < 20% |
-| **Tasa de Deuda Ponderada** | ~6.2% | Promedio ponderado de tasas de interés |
-| **Prueba Ácida (Liquidez)** | >100% | Bancos / Total Pasivos |
-
-> Los valores exactos varían según el tipo de cambio USD/PEN configurado (por defecto `3.4`).
+| Métrica | Definición / Notas |
+|---------|-------------------|
+| **Activo Corriente** | Bancos + Cuentas por Cobrar + Trabajos por Facturar + Stock Licencias |
+| **Activo No Corriente** | Inmuebles, Lotes, Chacras, Servidores y Equipos TI (Activos Fijos) |
+| **Activos Totales** | Activo Corriente + Activo No Corriente |
+| **Pasivo Corriente** | Cuotas de créditos de los próximos 12 meses + Tarjetas + Obligaciones inmediatas |
+| **Pasivo No Corriente** | Saldo de créditos y financiamiento exigible a más de 12 meses |
+| **Pasivos Totales** | Pasivo Corriente + Pasivo No Corriente |
+| **Capital de Trabajo Neto** | Activo Corriente − Pasivo Corriente (Superávit o Déficit operativo) |
+| **Consolidado Neto (Patrimonio)** | Activos Totales − Pasivos Totales |
+| **Razón Corriente (Current Ratio)** | Activo Corriente / Pasivo Corriente (Capacidad de pago a corto plazo) |
+| **Prueba Ácida (Liquidez)** | (Bancos + Facturas por Cobrar) / Pasivo Corriente |
+| **Tasa de Deuda Ponderada** | Promedio ponderado del interés anual sobre los pasivos totales |
 
 ---
 

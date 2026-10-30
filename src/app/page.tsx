@@ -53,6 +53,13 @@ type Summary = {
   totalFinancialLiabilities: number;
   totalPersonalLiabilities: number;
   totalLiabilities: number;
+  totalCurrentAssets: number;
+  totalNonCurrentAssets: number;
+  totalCurrentLiabilities: number;
+  totalNonCurrentLiabilities: number;
+  workingCapital: number;
+  currentRatio: number;
+  acidTestRatio: number;
   consolidated: number;
   monthlyIncome: number;
   monthlyExpenses: number;
@@ -77,6 +84,30 @@ type DashboardData = {
   monthlyHistory: any[];
   summary: Summary;
 };
+
+const getInitialMonth = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+};
+
+const MONTH_OPTIONS: { value: string; label: string }[] = (() => {
+  const opts: { value: string; label: string }[] = [];
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
+  const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+
+  // 3 months ahead down to 18 months behind
+  for (let i = -3; i <= 18; i++) {
+    const d = new Date(currentYear, currentMonth - i, 1);
+    const y = d.getFullYear();
+    const m = d.getMonth();
+    const val = `${y}-${String(m + 1).padStart(2, "0")}`;
+    const label = `${monthNames[m]} ${y}`;
+    opts.push({ value: val, label });
+  }
+  return opts;
+})();
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -108,7 +139,7 @@ export default function DashboardPage() {
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
 
   // Time travel / reporting period state (defaults to current month)
-  const [selectedMonth, setSelectedMonth] = useState("2026-08");
+  const [selectedMonth, setSelectedMonth] = useState(getInitialMonth);
 
   // Exchange rate USD/PEN setup state (defaults to 3.4)
   const [exchangeRate, setExchangeRate] = useState(3.4);
@@ -260,19 +291,11 @@ export default function DashboardPage() {
                 onChange={(e) => setSelectedMonth(e.target.value)}
                 className="bg-transparent text-white text-xs font-semibold focus:outline-none cursor-pointer"
               >
-                <option value="2026-08" className="bg-[#0b241c]">Ago 2026</option>
-                <option value="2026-07" className="bg-[#0b241c]">Jul 2026</option>
-                <option value="2026-06" className="bg-[#0b241c]">Jun 2026</option>
-                <option value="2026-05" className="bg-[#0b241c]">May 2026</option>
-                <option value="2026-04" className="bg-[#0b241c]">Abr 2026</option>
-                <option value="2026-03" className="bg-[#0b241c]">Mar 2026</option>
-                <option value="2026-02" className="bg-[#0b241c]">Feb 2026</option>
-                <option value="2026-01" className="bg-[#0b241c]">Ene 2026</option>
-                <option value="2025-12" className="bg-[#0b241c]">Dic 2025</option>
-                <option value="2025-11" className="bg-[#0b241c]">Nov 2025</option>
-                <option value="2025-10" className="bg-[#0b241c]">Oct 2025</option>
-                <option value="2025-09" className="bg-[#0b241c]">Sep 2025</option>
-                <option value="2025-08" className="bg-[#0b241c]">Ago 2025</option>
+                {MONTH_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value} className="bg-[#0b241c]">
+                    {opt.label}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -313,20 +336,24 @@ export default function DashboardPage() {
           <MetricCard
             title="Activos Totales"
             value={`S/${summary.totalAssets.toLocaleString("es-ES", { minimumFractionDigits: 2 })}`}
-            subtext="Bancos + Invoices + Hardware + Licencias"
+            subtext={`Corriente: S/${(summary.totalCurrentAssets || 0).toLocaleString("es-ES", { maximumFractionDigits: 0 })} | No Corriente: S/${(summary.totalNonCurrentAssets || 0).toLocaleString("es-ES", { maximumFractionDigits: 0 })}`}
             icon={DollarSign}
           />
           <MetricCard
             title="Pasivos Totales"
             value={`S/${summary.totalLiabilities.toLocaleString("es-ES", { minimumFractionDigits: 2 })}`}
-            subtext="Obligaciones consolidadas"
+            subtext={`Corto Plazo: S/${(summary.totalCurrentLiabilities || 0).toLocaleString("es-ES", { maximumFractionDigits: 0 })} | Largo Plazo: S/${(summary.totalNonCurrentLiabilities || 0).toLocaleString("es-ES", { maximumFractionDigits: 0 })}`}
             icon={AlertCircle}
           />
           <MetricCard
             title="Consolidado Neto"
             value={`S/${summary.consolidated.toLocaleString("es-ES", { minimumFractionDigits: 2 })}`}
-            subtext="Patrimonio neto real"
+            subtext={`Cap. Trabajo: ${(summary.workingCapital || 0) >= 0 ? "+" : ""}S/${(summary.workingCapital || 0).toLocaleString("es-ES", { maximumFractionDigits: 0 })}`}
             icon={FileSpreadsheet}
+            trend={{
+              value: (summary.workingCapital || 0) >= 0 ? "Cap. Trabajo +" : "Cap. Trabajo -",
+              isPositive: (summary.workingCapital || 0) >= 0
+            }}
           />
           <MetricCard
             title="Ingresos del Mes"

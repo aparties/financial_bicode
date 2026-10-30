@@ -161,13 +161,7 @@ export async function GET(req: Request) {
 
       const filteredInvoices = MOCK_INVOICES.filter(inv => 
         !filterEndDate || new Date(inv.createdAt).getTime() <= filterEndDate.getTime()
-      ).map(inv => {
-        let status = inv.status;
-        if (filterEndDate && status === "paid" && inv.dueDate && new Date(inv.dueDate).getTime() > filterEndDate.getTime()) {
-          status = new Date(inv.dueDate).getTime() < filterEndDate.getTime() ? "overdue" : "pending";
-        }
-        return { ...inv, status };
-      });
+      );
 
       const filteredAssets = MOCK_ASSETS.filter(ast => 
         !filterEndDate || new Date(ast.createdAt).getTime() <= filterEndDate.getTime()
@@ -199,19 +193,85 @@ export async function GET(req: Request) {
         };
       });
 
+      // Helper to sincerity split liabilities into Corriente (próximos 12 meses) y No Corriente (> 12 meses)
+      const computeLiabilitySplit = (l: any) => {
+        const totalAmountPEN = toPEN(parseFloat(l.amount || "0"), l.currency);
+        const pendingInstallments = l.pendingInstallments ? parseInt(l.pendingInstallments) : 0;
+        const installmentAmountPEN = l.installmentAmount ? toPEN(parseFloat(l.installmentAmount), l.currency) : 0;
+        
+        let currentPortionPEN = 0;
+        let nonCurrentPortionPEN = 0;
+
+        if (pendingInstallments > 0 && installmentAmountPEN > 0) {
+          const installmentsNext12M = Math.min(pendingInstallments, 12);
+          currentPortionPEN = installmentsNext12M * installmentAmountPEN;
+          if (currentPortionPEN > totalAmountPEN) {
+            currentPortionPEN = totalAmountPEN;
+          }
+          nonCurrentPortionPEN = Math.max(0, totalAmountPEN - currentPortionPEN);
+        } else if (l.dueDate) {
+          const dueTime = new Date(l.dueDate).getTime();
+          const oneYearFromNow = Date.now() + 365 * 24 * 60 * 60 * 1000;
+          if (dueTime <= oneYearFromNow) {
+            currentPortionPEN = totalAmountPEN;
+            nonCurrentPortionPEN = 0;
+          } else {
+            currentPortionPEN = 0;
+            nonCurrentPortionPEN = totalAmountPEN;
+          }
+        } else {
+          currentPortionPEN = totalAmountPEN;
+          nonCurrentPortionPEN = 0;
+        }
+
+        let classification = "current";
+        if (nonCurrentPortionPEN > 0 && currentPortionPEN > 0) classification = "mixed";
+        else if (nonCurrentPortionPEN > 0) classification = "non_current";
+
+        return {
+          currentPortionPEN,
+          nonCurrentPortionPEN,
+          classification,
+        };
+      };
+
       // CONVERT AND AGGREGATE metrics in Soles (PEN)
       const totalBalance = reconstructedAccounts.reduce((sum, acc) => sum + toPEN(parseFloat(acc.balance), acc.currency), 0);
       const totalUnbilled = filteredInvoices.filter(inv => inv.status === "unbilled").reduce((sum, inv) => sum + toPEN(parseFloat(inv.amount), inv.currency), 0);
       const totalReceivables = filteredInvoices.filter(inv => inv.status === "pending" || inv.status === "overdue").reduce((sum, inv) => sum + toPEN(parseFloat(inv.amount), inv.currency), 0);
       const totalFixedAssets = filteredAssets.filter(ast => ast.type !== "software_licenses").reduce((sum, ast) => sum + toPEN(parseFloat(ast.value), ast.currency), 0);
       const totalInventory = filteredAssets.filter(ast => ast.type === "software_licenses").reduce((sum, ast) => sum + toPEN(parseFloat(ast.value), ast.currency), 0);
-      const totalAssets = totalBalance + totalUnbilled + totalReceivables + totalFixedAssets + totalInventory;
+
+      // Sincerated Assets
+      const totalCurrentAssets = totalBalance + totalUnbilled + totalReceivables + totalInventory;
+      const totalNonCurrentAssets = totalFixedAssets;
+      const totalAssets = totalCurrentAssets + totalNonCurrentAssets;
+
+      // Sincerated Liabilities
+      let totalCurrentLiabilities = 0;
+      let totalNonCurrentLiabilities = 0;
+
+      const enhancedMockLiabilities = filteredLiabilities.map(l => {
+        const split = computeLiabilitySplit(l);
+        totalCurrentLiabilities += split.currentPortionPEN;
+        totalNonCurrentLiabilities += split.nonCurrentPortionPEN;
+        const rateDivisor = l.currency === "USD" ? EXCHANGE_RATE : 1;
+        return {
+          ...l,
+          currentPortion: (split.currentPortionPEN / rateDivisor).toFixed(2),
+          nonCurrentPortion: (split.nonCurrentPortionPEN / rateDivisor).toFixed(2),
+          classification: split.classification,
+        };
+      });
 
       const totalFinancialLiabilities = filteredLiabilities.filter(l => l.type === "financial" || l.type === "tax").reduce((sum, l) => sum + toPEN(parseFloat(l.amount), l.currency), 0);
       const totalPersonalLiabilities = filteredLiabilities.filter(l => l.type === "personal").reduce((sum, l) => sum + toPEN(parseFloat(l.amount), l.currency), 0);
-      const totalLiabilities = totalFinancialLiabilities + totalPersonalLiabilities;
+      const totalLiabilities = totalCurrentLiabilities + totalNonCurrentLiabilities;
 
       const consolidated = totalAssets - totalLiabilities;
+      const workingCapital = totalCurrentAssets - totalCurrentLiabilities;
+      const currentRatio = totalCurrentLiabilities > 0 ? totalCurrentAssets / totalCurrentLiabilities : (totalCurrentAssets > 0 ? 99 : 1.0);
+      const acidTestRatio = totalCurrentLiabilities > 0 ? (totalBalance + totalReceivables) / totalCurrentLiabilities : (totalBalance + totalReceivables > 0 ? 99 : 1.0);
 
       // Group expenses in PEN
       const categoryBreakdownMap: Record<string, number> = {};
@@ -246,7 +306,7 @@ export async function GET(req: Request) {
       const monthlyRent = targetMonthTxs.filter(t => t.type === "rent").reduce((sum, t) => sum + toPEN(parseFloat(t.amount), t.currency), 0);
 
       const netCashFlow = monthlyIncome - (monthlyExpenses + monthlyRent);
-      const liquidityRatio = totalLiabilities > 0 ? totalBalance / totalLiabilities : 1.0;
+      const liquidityRatio = acidTestRatio;
       const weightedInterestRate = totalLiabilities > 0
         ? filteredLiabilities.reduce((sum, l) => sum + (toPEN(parseFloat(l.amount), l.currency) * parseFloat(l.interestRate)), 0) / totalLiabilities
         : 0;
@@ -257,7 +317,7 @@ export async function GET(req: Request) {
         isDemo: true,
         accounts: reconstructedAccounts,
         transactions: filteredTransactions,
-        liabilities: filteredLiabilities,
+        liabilities: enhancedMockLiabilities,
         invoices: filteredInvoices,
         assets: filteredAssets,
         projections: filteredProjections,
@@ -269,10 +329,17 @@ export async function GET(req: Request) {
           totalReceivables,
           totalFixedAssets,
           totalInventory,
+          totalCurrentAssets,
+          totalNonCurrentAssets,
           totalAssets,
+          totalCurrentLiabilities,
+          totalNonCurrentLiabilities,
           totalFinancialLiabilities,
           totalPersonalLiabilities,
           totalLiabilities,
+          workingCapital,
+          currentRatio,
+          acidTestRatio,
           consolidated,
           monthlyIncome,
           monthlyExpenses,
@@ -310,13 +377,7 @@ export async function GET(req: Request) {
 
     const filteredInvoices = dbInvoices.filter(inv => 
       !filterEndDate || new Date(inv.createdAt).getTime() <= filterEndDate.getTime()
-    ).map(inv => {
-      let status = inv.status;
-      if (filterEndDate && status === "paid" && inv.dueDate && new Date(inv.dueDate).getTime() > filterEndDate.getTime()) {
-        status = new Date(inv.dueDate).getTime() < filterEndDate.getTime() ? "overdue" : "pending";
-      }
-      return { ...inv, status };
-    });
+    );
 
     const filteredAssets = dbAssets.filter(ast => 
       !filterEndDate || new Date(ast.createdAt).getTime() <= filterEndDate.getTime()
@@ -349,18 +410,86 @@ export async function GET(req: Request) {
       };
     });
 
+    // Helper to sincerity split liabilities into Corriente (próximos 12 meses) y No Corriente (> 12 meses)
+    const computeLiabilitySplit = (l: any) => {
+      const totalAmountPEN = toPEN(parseFloat(l.amount || "0"), l.currency);
+      const pendingInstallments = l.pendingInstallments ? parseInt(l.pendingInstallments) : 0;
+      const installmentAmountPEN = l.installmentAmount ? toPEN(parseFloat(l.installmentAmount), l.currency) : 0;
+      
+      let currentPortionPEN = 0;
+      let nonCurrentPortionPEN = 0;
+
+      if (pendingInstallments > 0 && installmentAmountPEN > 0) {
+        const installmentsNext12M = Math.min(pendingInstallments, 12);
+        currentPortionPEN = installmentsNext12M * installmentAmountPEN;
+        if (currentPortionPEN > totalAmountPEN) {
+          currentPortionPEN = totalAmountPEN;
+        }
+        nonCurrentPortionPEN = Math.max(0, totalAmountPEN - currentPortionPEN);
+      } else if (l.dueDate) {
+        const dueTime = new Date(l.dueDate).getTime();
+        const oneYearFromNow = Date.now() + 365 * 24 * 60 * 60 * 1000;
+        if (dueTime <= oneYearFromNow) {
+          currentPortionPEN = totalAmountPEN;
+          nonCurrentPortionPEN = 0;
+        } else {
+          currentPortionPEN = 0;
+          nonCurrentPortionPEN = totalAmountPEN;
+        }
+      } else {
+        currentPortionPEN = totalAmountPEN;
+        nonCurrentPortionPEN = 0;
+      }
+
+      let classification = "current";
+      if (nonCurrentPortionPEN > 0 && currentPortionPEN > 0) classification = "mixed";
+      else if (nonCurrentPortionPEN > 0) classification = "non_current";
+
+      return {
+        currentPortionPEN,
+        nonCurrentPortionPEN,
+        classification,
+      };
+    };
+
     const totalBalance = reconstructedAccounts.reduce((sum, acc) => sum + toPEN(parseFloat(acc.balance), acc.currency), 0);
     const totalUnbilled = filteredInvoices.filter(inv => inv.status === "unbilled").reduce((sum, inv) => sum + toPEN(parseFloat(inv.amount || "0"), inv.currency), 0);
     const totalReceivables = filteredInvoices.filter(inv => inv.status === "pending" || inv.status === "overdue").reduce((sum, inv) => sum + toPEN(parseFloat(inv.amount || "0"), inv.currency), 0);
     const totalFixedAssets = filteredAssets.filter(ast => ast.type !== "software_licenses").reduce((sum, ast) => sum + toPEN(parseFloat(ast.value || "0"), ast.currency), 0);
     const totalInventory = filteredAssets.filter(ast => ast.type === "software_licenses").reduce((sum, ast) => sum + toPEN(parseFloat(ast.value || "0"), ast.currency), 0);
-    const totalAssets = totalBalance + totalUnbilled + totalReceivables + totalFixedAssets + totalInventory;
+
+    // Sincerated Assets
+    const totalCurrentAssets = totalBalance + totalUnbilled + totalReceivables + totalInventory;
+    const totalNonCurrentAssets = totalFixedAssets;
+    const totalAssets = totalCurrentAssets + totalNonCurrentAssets;
+
+    // Sincerated Liabilities
+    let totalCurrentLiabilities = 0;
+    let totalNonCurrentLiabilities = 0;
+
+    const enhancedDbLiabilities = filteredLiabilities.map(l => {
+      const split = computeLiabilitySplit(l);
+      totalCurrentLiabilities += split.currentPortionPEN;
+      totalNonCurrentLiabilities += split.nonCurrentPortionPEN;
+      const rateDivisor = l.currency === "USD" ? EXCHANGE_RATE : 1;
+      return {
+        ...l,
+        amount: parseFloat(l.amount || "0").toString(),
+        interestRate: parseFloat(l.interestRate || "0").toString(),
+        currentPortion: (split.currentPortionPEN / rateDivisor).toFixed(2),
+        nonCurrentPortion: (split.nonCurrentPortionPEN / rateDivisor).toFixed(2),
+        classification: split.classification,
+      };
+    });
 
     const totalFinancialLiabilities = filteredLiabilities.filter(l => l.type === "financial" || l.type === "tax").reduce((sum, l) => sum + toPEN(parseFloat(l.amount || "0"), l.currency), 0);
     const totalPersonalLiabilities = filteredLiabilities.filter(l => l.type === "personal").reduce((sum, l) => sum + toPEN(parseFloat(l.amount || "0"), l.currency), 0);
-    const totalLiabilities = totalFinancialLiabilities + totalPersonalLiabilities;
+    const totalLiabilities = totalCurrentLiabilities + totalNonCurrentLiabilities;
 
     const consolidated = totalAssets - totalLiabilities;
+    const workingCapital = totalCurrentAssets - totalCurrentLiabilities;
+    const currentRatio = totalCurrentLiabilities > 0 ? totalCurrentAssets / totalCurrentLiabilities : (totalCurrentAssets > 0 ? 99 : 1.0);
+    const acidTestRatio = totalCurrentLiabilities > 0 ? (totalBalance + totalReceivables) / totalCurrentLiabilities : (totalBalance + totalReceivables > 0 ? 99 : 1.0);
 
     // Group expenses in PEN
     const categoryBreakdownMap: Record<string, number> = {};
@@ -395,7 +524,7 @@ export async function GET(req: Request) {
     const monthlyRent = targetMonthTxs.filter(t => t.type === "rent").reduce((sum, t) => sum + toPEN(parseFloat(t.amount || "0"), t.currency), 0);
 
     const netCashFlow = monthlyIncome - (monthlyExpenses + monthlyRent);
-    const liquidityRatio = totalLiabilities > 0 ? totalBalance / totalLiabilities : 1.0;
+    const liquidityRatio = acidTestRatio;
     const weightedInterestRate = totalLiabilities > 0
       ? filteredLiabilities.reduce((sum, l) => sum + (toPEN(parseFloat(l.amount || "0"), l.currency) * parseFloat(l.interestRate || "0")), 0) / totalLiabilities
       : 0;
@@ -406,7 +535,7 @@ export async function GET(req: Request) {
       isDemo: false,
       accounts: reconstructedAccounts,
       transactions: filteredTransactions.map(t => ({ ...t, amount: parseFloat(t.amount || "0").toString() })),
-      liabilities: filteredLiabilities.map(l => ({ ...l, amount: parseFloat(l.amount || "0").toString(), interestRate: parseFloat(l.interestRate || "0").toString() })),
+      liabilities: enhancedDbLiabilities,
       invoices: filteredInvoices.map(inv => ({ ...inv, amount: parseFloat(inv.amount || "0").toString() })),
       assets: filteredAssets.map(ast => ({ ...ast, value: parseFloat(ast.value || "0").toString() })),
       projections: filteredProjections.map(prj => ({ ...prj, estimatedRevenue: parseFloat(prj.estimatedRevenue || "0").toString(), estimatedCost: parseFloat(prj.estimatedCost || "0").toString() })),
@@ -418,10 +547,17 @@ export async function GET(req: Request) {
         totalReceivables,
         totalFixedAssets,
         totalInventory,
+        totalCurrentAssets,
+        totalNonCurrentAssets,
         totalAssets,
+        totalCurrentLiabilities,
+        totalNonCurrentLiabilities,
         totalFinancialLiabilities,
         totalPersonalLiabilities,
         totalLiabilities,
+        workingCapital,
+        currentRatio,
+        acidTestRatio,
         consolidated,
         monthlyIncome,
         monthlyExpenses,
