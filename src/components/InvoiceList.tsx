@@ -127,6 +127,16 @@ export function InvoiceList({ invoices, onAddClick, onMutate }: InvoiceListProps
               </div>
               <div className="flex items-center gap-2 shrink-0 ml-3">
                 <div className="flex items-center gap-1 opacity-90 sm:opacity-0 sm:group-hover/item:opacity-100 transition-opacity duration-200">
+                  {inv.status === "unbilled" && (
+                    <button
+                      onClick={() => handleQuickStatusChange(inv, "pending")}
+                      title="Emitir factura (Mover a Por Cobrar)"
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-amber-400 bg-amber-400/10 hover:bg-amber-400/20 border border-amber-400/30 transition-all cursor-pointer text-[10px] font-semibold"
+                    >
+                      <FileText className="w-3 h-3" />
+                      <span className="hidden sm:inline">Facturar</span>
+                    </button>
+                  )}
                   {inv.status !== "paid" ? (
                     <button
                       onClick={() => handleQuickStatusChange(inv, "paid")}

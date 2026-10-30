@@ -33,11 +33,31 @@ _(Santander USD: $15,500 × 3.4 = S/ 52,700 + S/ 42,450 + S/ 1,850)_
 | `inv-6` | Servicio Cloud — Epsilon LLC (Migración) | S/ 3,100.00 | Sin facturar | — | PEN |
 | `inv-7` | Factura #105 — Sigma Inc (Histórica) | S/ 5,200.00 | Pagada | 25-Ago-2025 | PEN |
 
+### Facturas y OCs Heineken Perú S.A.C.
+| Factura / OC | Descripción / Tipo | Monto | Estado | Vencimiento | Moneda |
+|--------------|-------------------|-------|--------|-------------|--------|
+| `FF01-692` | Heineken — ORD-00008565 (falta ticket) | S/ 5,900.00 | Pendiente | 02-Nov-2026 | PEN |
+| `FF01-701` | Heineken — ORD-00008857 | S/ 10,443.00 | Cobrada | 30-Nov-2026 | PEN |
+| `FF01-702` | Heineken — Bien | $ 487.81 | Pendiente | 30-Nov-2026 | USD |
+| `FF01-703` | Heineken — Servicio | $ 805.35 | Cobrada | 04-Oct-2026 | USD |
+| `FF01-704` | Heineken — ORD-00009056 | S/ 4,130.00 | Cobrada | 07-Dic-2026 | PEN |
+| `FF01-709` | Heineken — ORD-00008995 | S/ 2,408.62 | Pendiente | 31-Oct-2026 | PEN |
+| `FF01-710` | Heineken — ORD-00008936 | S/ 3,894.00 | Pendiente | 19-Dic-2026 | PEN |
+| `ORD-00008839` | Heineken — Servicio | S/ 1,593.00 | Sin facturar (OC) | 19-Dic-2026 | PEN |
+| `ORD-00008996` | Heineken — Bien | $ 487.81 | Sin facturar (OC) | 19-Dic-2026 | USD |
+| `ORD-00009084` | Heineken — Servicio | S/ 3,032.60 | Sin facturar (OC) | 19-Dic-2026 | PEN |
+| `ORD-00009300` | Heineken — Servicio | S/ 8,850.00 | Sin facturar (OC) | 19-Dic-2026 | PEN |
+| `ORD-00009367` | Heineken — Servicio | S/ 1,650.00 | Sin facturar (OC) | 19-Dic-2026 | PEN |
+| `ORD-00009323` | Heineken — Servicio | S/ 849.60 | Sin facturar (OC) | 19-Dic-2026 | PEN |
+| `ORD-00009374` | Heineken — Bien | S/ 7,186.20 | Sin facturar (OC) | 19-Dic-2026 | PEN |
+| `ORD-00009415` | Heineken — Servicio | S/ 4,956.00 | Sin facturar (OC) | 19-Dic-2026 | PEN |
+| `ORD-00009421` | Heineken — Bien | $ 1,214.22 | Sin facturar (OC) | 19-Dic-2026 | USD |
+
 **Estados de facturación:**
 - `paid` — Cobrada y liquidada
 - `pending` — Por cobrar (en plazo)
 - `overdue` — Vencida sin cobrar
-- `unbilled` — Trabajo entregado, aún no facturado
+- `unbilled` — Orden de Compra (OC) / Trabajo sin facturar aún
 
 ---
 
