@@ -16,6 +16,7 @@ type Liability = {
   amount: string;
   dueDate?: string | Date;
   currency?: string;
+  status?: string;
 };
 
 type FinancialCalendarProps = {
@@ -64,7 +65,7 @@ export function FinancialCalendar({ invoices, liabilities }: FinancialCalendarPr
     });
 
     const dayLiabilities = liabilities.filter((l) => {
-      if (!l.dueDate) return false;
+      if (!l.dueDate || l.status === "paid" || parseFloat(l.amount || "0") <= 0) return false;
       const dueTime = new Date(l.dueDate).getTime();
       return dueTime >= dayStart && dueTime <= dayEnd;
     });

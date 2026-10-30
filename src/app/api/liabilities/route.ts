@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { name, amount, interestRate, type, dueDate, installmentAmount, pendingInstallments, currency } = body;
+    const { name, amount, interestRate, type, dueDate, installmentAmount, pendingInstallments, currency, status } = body;
 
     if (!name || amount === undefined || interestRate === undefined || !type) {
       return NextResponse.json({ error: "Campos obligatorios faltantes (name, amount, interestRate, type)" }, { status: 400 });
@@ -14,23 +14,24 @@ export async function POST(req: Request) {
 
     const numericAmount = parseFloat(amount);
     const numericRate = parseFloat(interestRate);
-    if (isNaN(numericAmount) || isNaN(numericRate)) {
-      return NextResponse.json({ error: "El monto y la tasa de interés deben ser números válidos" }, { status: 400 });
+    if (isNaN(numericAmount) || isNaN(numericRate) || numericAmount < 0) {
+      return NextResponse.json({ error: "El monto y la tasa de interés deben ser números válidos no negativos" }, { status: 400 });
     }
 
     const numericInstallment = installmentAmount ? parseFloat(installmentAmount) : 0;
     const intPending = pendingInstallments ? parseInt(pendingInstallments) : 0;
     const finalCurrency = currency || "PEN";
+    const finalStatus = status || (numericAmount === 0 ? "paid" : "active");
 
     if (isDemo || !db) {
       return NextResponse.json({
         success: true, isDemo: true, message: "Pasivo/Préstamo registrado en modo demostración",
-        liability: { id: `lia-demo-${Math.random().toString(36).substring(2, 11)}`, name, amount: numericAmount.toFixed(2), interestRate: numericRate.toFixed(2), type, dueDate: dueDate ? new Date(dueDate) : null, installmentAmount: numericInstallment.toFixed(2), pendingInstallments: intPending, currency: finalCurrency, createdAt: new Date() },
+        liability: { id: `lia-demo-${Math.random().toString(36).substring(2, 11)}`, name, amount: numericAmount.toFixed(2), interestRate: numericRate.toFixed(2), type, dueDate: dueDate ? new Date(dueDate) : null, installmentAmount: numericInstallment.toFixed(2), pendingInstallments: intPending, status: finalStatus, currency: finalCurrency, createdAt: new Date() },
       });
     }
 
-    const newLiaList = await db.insert(liabilities).values({ name, amount: numericAmount.toFixed(2), interestRate: numericRate.toFixed(2), type, dueDate: dueDate ? new Date(dueDate) : null, installmentAmount: numericInstallment.toFixed(2), pendingInstallments: intPending, currency: finalCurrency }).returning();
-    return NextResponse.json({ success: true, liability: { ...newLiaList[0], amount: parseFloat(newLiaList[0].amount).toString(), interestRate: parseFloat(newLiaList[0].interestRate).toString(), installmentAmount: parseFloat(newLiaList[0].installmentAmount).toString(), pendingInstallments: newLiaList[0].pendingInstallments } });
+    const newLiaList = await db.insert(liabilities).values({ name, amount: numericAmount.toFixed(2), interestRate: numericRate.toFixed(2), type, dueDate: dueDate ? new Date(dueDate) : null, installmentAmount: numericInstallment.toFixed(2), pendingInstallments: intPending, status: finalStatus, currency: finalCurrency }).returning();
+    return NextResponse.json({ success: true, liability: { ...newLiaList[0], amount: parseFloat(newLiaList[0].amount).toString(), interestRate: parseFloat(newLiaList[0].interestRate).toString(), installmentAmount: parseFloat(newLiaList[0].installmentAmount).toString(), pendingInstallments: newLiaList[0].pendingInstallments, status: newLiaList[0].status } });
   } catch (error: any) {
     return NextResponse.json({ error: "Error al registrar el pasivo/préstamo", details: error.message }, { status: 500 });
   }
@@ -43,23 +44,30 @@ export async function PUT(req: Request) {
     if (!id) return NextResponse.json({ error: "ID requerido" }, { status: 400 });
 
     const body = await req.json();
-    const { name, amount, interestRate, type, dueDate, installmentAmount, pendingInstallments, currency } = body;
+    const { name, amount, interestRate, type, dueDate, installmentAmount, pendingInstallments, currency, status } = body;
 
     const numericAmount = parseFloat(amount);
     const numericRate = parseFloat(interestRate ?? "0");
-    if (isNaN(numericAmount) || numericAmount <= 0) {
-      return NextResponse.json({ error: "El monto debe ser un número positivo" }, { status: 400 });
+    if (isNaN(numericAmount) || numericAmount < 0) {
+      return NextResponse.json({ error: "El monto debe ser un número válido mayor o igual a cero" }, { status: 400 });
     }
 
     if (isDemo || !db) {
       return NextResponse.json({ success: true, isDemo: true, message: "Pasivo actualizado en modo demo" });
     }
 
+    const intPending = pendingInstallments !== undefined ? parseInt(pendingInstallments) : 0;
+    const finalStatus = status || (numericAmount === 0 ? "paid" : "active");
+
     const updated = await db.update(liabilities).set({
-      name, amount: numericAmount.toFixed(2), interestRate: numericRate.toFixed(2), type,
+      name, 
+      amount: numericAmount.toFixed(2), 
+      interestRate: numericRate.toFixed(2), 
+      type,
       dueDate: dueDate ? new Date(dueDate) : null,
       installmentAmount: installmentAmount ? parseFloat(installmentAmount).toFixed(2) : "0.00",
-      pendingInstallments: pendingInstallments ? parseInt(pendingInstallments) : 0,
+      pendingInstallments: intPending,
+      status: finalStatus,
       currency: currency || "PEN",
     }).where(eq(liabilities.id, id)).returning();
 

@@ -16,6 +16,7 @@ type Liability = {
   amount: string;
   dueDate?: string | Date;
   currency?: string;
+  status?: string;
 };
 
 type UpcomingDeadlinesProps = {
@@ -39,7 +40,7 @@ export function UpcomingDeadlines({ invoices, liabilities }: UpcomingDeadlinesPr
   // Filter liabilities due in next 30 days (or overdue)
   const upcomingLiabilities = liabilities
     .filter((l) => {
-      if (!l.dueDate) return false;
+      if (!l.dueDate || l.status === "paid" || parseFloat(l.amount || "0") <= 0) return false;
       const dueTime = new Date(l.dueDate).getTime();
       return dueTime <= thirtyDaysFromNow;
     })

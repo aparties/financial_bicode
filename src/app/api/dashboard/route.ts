@@ -56,11 +56,11 @@ const MOCK_TRANSACTIONS = [
 
 // Mock Liabilities
 const MOCK_LIABILITIES = [
-  { id: "lia-1", name: "Préstamo Comercial BBVA", amount: "25000.00", interestRate: "5.50", type: "financial", dueDate: new Date("2026-12-18"), installmentAmount: "1500.00", pendingInstallments: 18, currency: "PEN", createdAt: new Date("2025-12-15") },
-  { id: "lia-2", name: "Tarjeta Visa Corporate USD", amount: "1200.00", interestRate: "18.90", type: "financial", dueDate: new Date("2026-08-10"), installmentAmount: "1200.00", pendingInstallments: 1, currency: "USD", createdAt: new Date("2026-01-10") }, // USD Loan
-  { id: "lia-3", name: "Leasing Servidores Dell", amount: "8900.00", interestRate: "4.20", type: "financial", dueDate: new Date("2026-10-22"), installmentAmount: "450.00", pendingInstallments: 20, currency: "PEN", createdAt: new Date("2025-10-22") },
-  { id: "lia-4", name: "Préstamo Personal - Dr. Juan Gómez", amount: "7500.00", interestRate: "0.00", type: "personal", dueDate: new Date("2026-11-01"), installmentAmount: "500.00", pendingInstallments: 15, currency: "PEN", createdAt: new Date("2026-05-01") },
-  { id: "lia-5", name: "Fraccionamiento Deuda SUNAT", amount: "12000.00", interestRate: "1.20", type: "tax", dueDate: new Date("2027-08-10"), installmentAmount: "1000.00", pendingInstallments: 12, currency: "PEN", createdAt: new Date("2026-08-01") },
+  { id: "lia-1", name: "Préstamo Comercial BBVA", amount: "25000.00", interestRate: "5.50", type: "financial", dueDate: new Date("2026-12-18"), installmentAmount: "1500.00", pendingInstallments: 18, currency: "PEN", status: "active", createdAt: new Date("2025-12-15") },
+  { id: "lia-2", name: "Tarjeta Visa Corporate USD", amount: "1200.00", interestRate: "18.90", type: "financial", dueDate: new Date("2026-08-10"), installmentAmount: "1200.00", pendingInstallments: 1, currency: "USD", status: "active", createdAt: new Date("2026-01-10") }, // USD Loan
+  { id: "lia-3", name: "Leasing Servidores Dell", amount: "8900.00", interestRate: "4.20", type: "financial", dueDate: new Date("2026-10-22"), installmentAmount: "450.00", pendingInstallments: 20, currency: "PEN", status: "active", createdAt: new Date("2025-10-22") },
+  { id: "lia-4", name: "Préstamo Personal - Dr. Juan Gómez", amount: "7500.00", interestRate: "0.00", type: "personal", dueDate: new Date("2026-11-01"), installmentAmount: "500.00", pendingInstallments: 15, currency: "PEN", status: "active", createdAt: new Date("2026-05-01") },
+  { id: "lia-5", name: "Fraccionamiento Deuda SUNAT", amount: "12000.00", interestRate: "1.20", type: "tax", dueDate: new Date("2027-08-10"), installmentAmount: "1000.00", pendingInstallments: 12, currency: "PEN", status: "active", createdAt: new Date("2026-08-01") },
 ];
 
 export async function GET(req: Request) {
@@ -199,6 +199,14 @@ export async function GET(req: Request) {
         const pendingInstallments = l.pendingInstallments ? parseInt(l.pendingInstallments) : 0;
         const installmentAmountPEN = l.installmentAmount ? toPEN(parseFloat(l.installmentAmount), l.currency) : 0;
         
+        if (l.status === "paid" || totalAmountPEN <= 0) {
+          return {
+            currentPortionPEN: 0,
+            nonCurrentPortionPEN: 0,
+            classification: "paid",
+          };
+        }
+
         let currentPortionPEN = 0;
         let nonCurrentPortionPEN = 0;
 
@@ -261,11 +269,13 @@ export async function GET(req: Request) {
           currentPortion: (split.currentPortionPEN / rateDivisor).toFixed(2),
           nonCurrentPortion: (split.nonCurrentPortionPEN / rateDivisor).toFixed(2),
           classification: split.classification,
+          status: l.status || (parseFloat(l.amount || "0") <= 0 ? "paid" : "active"),
         };
       });
 
-      const totalFinancialLiabilities = filteredLiabilities.filter(l => l.type === "financial" || l.type === "tax").reduce((sum, l) => sum + toPEN(parseFloat(l.amount), l.currency), 0);
-      const totalPersonalLiabilities = filteredLiabilities.filter(l => l.type === "personal").reduce((sum, l) => sum + toPEN(parseFloat(l.amount), l.currency), 0);
+      const activeMockLiabilities = filteredLiabilities.filter(l => l.status !== "paid" && parseFloat(l.amount || "0") > 0);
+      const totalFinancialLiabilities = activeMockLiabilities.filter(l => l.type === "financial" || l.type === "tax").reduce((sum, l) => sum + toPEN(parseFloat(l.amount), l.currency), 0);
+      const totalPersonalLiabilities = activeMockLiabilities.filter(l => l.type === "personal").reduce((sum, l) => sum + toPEN(parseFloat(l.amount), l.currency), 0);
       const totalLiabilities = totalCurrentLiabilities + totalNonCurrentLiabilities;
 
       const consolidated = totalAssets - totalLiabilities;
@@ -416,6 +426,14 @@ export async function GET(req: Request) {
       const pendingInstallments = l.pendingInstallments ? parseInt(l.pendingInstallments) : 0;
       const installmentAmountPEN = l.installmentAmount ? toPEN(parseFloat(l.installmentAmount), l.currency) : 0;
       
+      if (l.status === "paid" || totalAmountPEN <= 0) {
+        return {
+          currentPortionPEN: 0,
+          nonCurrentPortionPEN: 0,
+          classification: "paid",
+        };
+      }
+
       let currentPortionPEN = 0;
       let nonCurrentPortionPEN = 0;
 
@@ -479,11 +497,13 @@ export async function GET(req: Request) {
         currentPortion: (split.currentPortionPEN / rateDivisor).toFixed(2),
         nonCurrentPortion: (split.nonCurrentPortionPEN / rateDivisor).toFixed(2),
         classification: split.classification,
+        status: l.status || (parseFloat(l.amount || "0") <= 0 ? "paid" : "active"),
       };
     });
 
-    const totalFinancialLiabilities = filteredLiabilities.filter(l => l.type === "financial" || l.type === "tax").reduce((sum, l) => sum + toPEN(parseFloat(l.amount || "0"), l.currency), 0);
-    const totalPersonalLiabilities = filteredLiabilities.filter(l => l.type === "personal").reduce((sum, l) => sum + toPEN(parseFloat(l.amount || "0"), l.currency), 0);
+    const activeDbLiabilities = filteredLiabilities.filter(l => l.status !== "paid" && parseFloat(l.amount || "0") > 0);
+    const totalFinancialLiabilities = activeDbLiabilities.filter(l => l.type === "financial" || l.type === "tax").reduce((sum, l) => sum + toPEN(parseFloat(l.amount || "0"), l.currency), 0);
+    const totalPersonalLiabilities = activeDbLiabilities.filter(l => l.type === "personal").reduce((sum, l) => sum + toPEN(parseFloat(l.amount || "0"), l.currency), 0);
     const totalLiabilities = totalCurrentLiabilities + totalNonCurrentLiabilities;
 
     const consolidated = totalAssets - totalLiabilities;

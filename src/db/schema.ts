@@ -30,6 +30,7 @@ export const liabilities = pgTable("liabilities", {
   dueDate: timestamp("due_date"),
   installmentAmount: numeric("installment_amount", { precision: 12, scale: 2 }).notNull().default("0.00"),
   pendingInstallments: integer("pending_installments").notNull().default(0),
+  status: varchar("status", { length: 50 }).notNull().default("active"), // 'active' | 'paid'
   currency: varchar("currency", { length: 10 }).notNull().default("PEN"), // 'PEN' | 'USD'
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
